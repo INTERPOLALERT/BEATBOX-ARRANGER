@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beatbox Arranger</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎵 Beatbox Arranger</h1>
+            <p>Upload sounds, describe your beat, and let AI arrange it</p>
+        </header>
+
+        <main>
+            <!-- Sound Upload Section -->
+            <section class="section upload-section">
+                <h2>1. Upload Your Sounds</h2>
+                <div class="upload-area">
+                    <input type="file" id="fileInput" accept="audio/*" multiple>
+                    <label for="fileInput" class="upload-label">
+                        Choose Audio Files (MP3, WAV, OGG)
+                    </label>
+                </div>
+                <div id="soundLibrary" class="sound-library"></div>
+            </section>
+
+            <!-- Prompt Input Section -->
+            <section class="section prompt-section">
+                <h2>2. Describe Your Beat</h2>
+                <div class="prompt-input-area">
+                    <input
+                        type="text"
+                        id="promptInput"
+                        placeholder="e.g., trap beat 140 bpm, boom bap 90 bpm, house 128 bpm"
+                        class="prompt-input"
+                    >
+                    <button id="generateBtn" class="btn btn-primary">Generate Pattern</button>
+                </div>
+                <div id="parsedInfo" class="parsed-info"></div>
+            </section>
+
+            <!-- Pattern Display Section -->
+            <section class="section pattern-section">
+                <h2>3. Your Pattern</h2>
+                <div id="patternDisplay" class="pattern-display">
+                    <p class="placeholder-text">Generate a pattern to see it here...</p>
+                </div>
+            </section>
+
+            <!-- Playback Controls -->
+            <section class="section controls-section">
+                <h2>4. Playback & Export</h2>
+                <div class="controls">
+                    <button id="playBtn" class="btn btn-success" disabled>▶ Play</button>
+                    <button id="stopBtn" class="btn btn-danger" disabled>■ Stop</button>
+                    <button id="exportWavBtn" class="btn btn-secondary" disabled>Export WAV</button>
+                    <button id="exportMp3Btn" class="btn btn-secondary" disabled>Export MP3</button>
+                </div>
+                <div class="playback-info">
+                    <div id="playbackStatus" class="playback-status">Ready</div>
+                    <div id="currentBeat" class="current-beat"></div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <details class="troubleshooting">
+                <summary>Troubleshooting Guide</summary>
+                <div class="troubleshooting-content">
+                    <h3>Audio Not Playing?</h3>
+                    <ul>
+                        <li>AudioContext needs user interaction - click Play button</li>
+                        <li>Verify audio files are valid (MP3, WAV, OGG)</li>
+                        <li>Check browser console for errors</li>
+                    </ul>
+                    <h3>Timing Issues?</h3>
+                    <ul>
+                        <li>App uses AudioContext.currentTime (not setTimeout)</li>
+                        <li>Check if BPM is correct in your prompt</li>
+                    </ul>
+                    <h3>Export Fails?</h3>
+                    <ul>
+                        <li>Large projects may exceed memory</li>
+                        <li>Try reducing duration or simplifying pattern</li>
+                    </ul>
+                </div>
+            </details>
+        </footer>
+    </div>
+
+    <!-- Load libraries and modules -->
+    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+
+    <!-- App modules -->
+    <script src="js/storage.js"></script>
+    <script src="js/audioManager.js"></script>
+    <script src="js/patterns.js"></script>
+    <script src="js/promptParser.js"></script>
+    <script src="js/sequencer.js"></script>
+    <script src="js/exporter.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

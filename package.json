@@ -1,0 +1,23 @@
+{
+  "name": "beatbox-arranger",
+  "version": "1.0.0",
+  "description": "AI-powered beatbox pattern arranger using Web Audio API",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server -p 8080 -o"
+  },
+  "keywords": [
+    "audio",
+    "beatbox",
+    "web-audio-api",
+    "music",
+    "pattern",
+    "sequencer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
