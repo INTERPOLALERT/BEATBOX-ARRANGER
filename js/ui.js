@@ -4,6 +4,8 @@ const UI = {
     currentPattern: null,
 
     init() {
+        console.log('🔧 Initializing UI...');
+
         // Cache elements
         this.elements = {
             fileInput: document.getElementById('fileInput'),
@@ -19,32 +21,83 @@ const UI = {
             status: document.getElementById('playbackStatus') || document.getElementById('status')
         };
 
-        // Setup listeners
-        this.elements.fileInput.addEventListener('change', (e) => this.handleFiles(e));
-        this.elements.generateBtn.addEventListener('click', () => this.generate());
-        this.elements.promptInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.generate();
-        });
-        this.elements.playBtn.addEventListener('click', () => this.play());
-        this.elements.stopBtn.addEventListener('click', () => this.stop());
-        this.elements.exportWavBtn.addEventListener('click', () => this.export('wav'));
-        this.elements.exportMp3Btn.addEventListener('click', () => this.export('mp3'));
+        // Check if all elements exist
+        for (const [key, element] of Object.entries(this.elements)) {
+            if (!element) {
+                console.error('❌ Missing element:', key);
+            } else {
+                console.log('✓ Found element:', key);
+            }
+        }
+
+        // Setup listeners with error handling
+        try {
+            this.elements.fileInput.addEventListener('change', (e) => {
+                console.log('📁 File input changed');
+                this.handleFiles(e);
+            });
+
+            this.elements.generateBtn.addEventListener('click', () => {
+                console.log('🎵 Generate button clicked!');
+                try {
+                    this.generate();
+                } catch (error) {
+                    console.error('❌ Generate error:', error);
+                    alert('Error generating pattern: ' + error.message);
+                }
+            });
+
+            this.elements.promptInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    console.log('⌨️ Enter key pressed');
+                    this.generate();
+                }
+            });
+
+            this.elements.playBtn.addEventListener('click', () => {
+                console.log('▶️ Play clicked');
+                this.play();
+            });
+
+            this.elements.stopBtn.addEventListener('click', () => {
+                console.log('⏹️ Stop clicked');
+                this.stop();
+            });
+
+            this.elements.exportWavBtn.addEventListener('click', () => {
+                console.log('💾 Export WAV clicked');
+                this.export('wav');
+            });
+
+            this.elements.exportMp3Btn.addEventListener('click', () => {
+                console.log('💾 Export MP3 clicked');
+                this.export('mp3');
+            });
+
+            console.log('✓ All event listeners attached');
+        } catch (error) {
+            console.error('❌ Error setting up event listeners:', error);
+        }
 
         console.log('✓ UI ready');
     },
 
     async handleFiles(event) {
         const files = event.target.files;
+        console.log('📁 Files selected:', files.length);
+
         if (files.length === 0) return;
 
         this.status('Loading sounds...');
 
         for (const file of files) {
             try {
+                console.log('Loading file:', file.name);
                 const id = 'sound_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
                 await AudioManager.loadSound(file, id);
                 this.addSoundItem(id, AudioManager.sounds[id]);
             } catch (error) {
+                console.error('❌ Failed to load:', file.name, error);
                 alert('Failed to load ' + file.name + ': ' + error.message);
             }
         }
@@ -80,6 +133,7 @@ const UI = {
         select.value = sound.category;
 
         item.querySelector('.btn-play').addEventListener('click', () => {
+            console.log('▶️ Playing sound:', id);
             AudioManager.playSound(id);
         });
 
@@ -92,6 +146,7 @@ const UI = {
         });
 
         select.addEventListener('change', async (e) => {
+            console.log('Category changed:', id, '->', e.target.value);
             await AudioManager.updateCategory(id, e.target.value);
             this.status('Updated category');
         });
@@ -100,59 +155,101 @@ const UI = {
     },
 
     generate() {
-        const prompt = this.elements.promptInput.value.trim();
-        if (!prompt) {
-            alert('Enter a prompt (e.g., "trap beat 140 bpm")');
-            return;
+        console.log('🎵 ========== GENERATE STARTED ==========');
+
+        try {
+            // Step 1: Get prompt
+            const prompt = this.elements.promptInput.value.trim();
+            console.log('Step 1 - Prompt:', prompt);
+
+            if (!prompt) {
+                console.log('❌ No prompt entered');
+                alert('Enter a prompt (e.g., "trap beat 140 bpm")');
+                return;
+            }
+
+            // Step 2: Parse prompt
+            console.log('Step 2 - Parsing prompt...');
+            const parsed = PromptParser.parse(prompt);
+            console.log('Parsed result:', parsed);
+
+            // Step 3: Validate
+            console.log('Step 3 - Validating...');
+            const validation = PromptParser.validate(parsed);
+            console.log('Validation result:', validation);
+
+            if (!validation.valid) {
+                console.log('❌ Validation failed:', validation.errors);
+                alert(validation.errors.join('\n'));
+                return;
+            }
+
+            // Step 4: Show parsed info
+            console.log('Step 4 - Showing parsed info...');
+            this.elements.parsedInfo.innerHTML = '<p>' + PromptParser.format(parsed) + '</p>';
+            this.elements.parsedInfo.style.display = 'block';
+
+            // Step 5: Get available sounds
+            console.log('Step 5 - Getting available sounds...');
+            const sounds = AudioManager.getAllSounds();
+            console.log('All sounds:', sounds);
+
+            const categories = [...new Set(sounds.map(s => s.category))].filter(c => c !== 'uncategorized');
+            console.log('Available categories:', categories);
+
+            if (categories.length === 0) {
+                console.log('❌ No categorized sounds');
+                alert('Please upload and categorize sounds first!\n\nMake sure to select a category (kick, snare, hihat, etc.) for each sound.');
+                return;
+            }
+
+            // Step 6: Create pattern
+            console.log('Step 6 - Creating pattern...');
+            console.log('Genre:', parsed.genre);
+            console.log('Categories:', categories);
+
+            const pattern = PatternTemplates.createFromAvailable(parsed.genre, categories);
+            console.log('Pattern created:', pattern);
+
+            if (!pattern) {
+                console.log('❌ Pattern creation failed');
+                alert('Pattern not found for genre: ' + parsed.genre);
+                return;
+            }
+
+            if (Object.keys(pattern.tracks).length === 0) {
+                console.log('❌ No tracks in pattern');
+                alert('No matching sounds for this pattern!\n\nMake sure you have sounds categorized as: ' + categories.join(', '));
+                return;
+            }
+
+            pattern.bpm = parsed.bpm;
+            this.currentPattern = pattern;
+
+            console.log('Step 7 - Displaying pattern...');
+            this.displayPattern(pattern);
+
+            console.log('Step 8 - Initializing sequencer...');
+            Sequencer.init(pattern, pattern.bpm);
+
+            console.log('Step 9 - Enabling buttons...');
+            this.elements.playBtn.disabled = false;
+            this.elements.exportWavBtn.disabled = false;
+            this.elements.exportMp3Btn.disabled = false;
+
+            this.status('Pattern generated!');
+            console.log('✓ ========== GENERATE COMPLETE ==========');
+
+        } catch (error) {
+            console.error('❌ ========== GENERATE ERROR ==========');
+            console.error('Error:', error);
+            console.error('Stack:', error.stack);
+            alert('Error generating pattern:\n\n' + error.message + '\n\nCheck console for details (F12)');
         }
-
-        // Parse
-        const parsed = PromptParser.parse(prompt);
-        const validation = PromptParser.validate(parsed);
-
-        if (!validation.valid) {
-            alert(validation.errors.join('\n'));
-            return;
-        }
-
-        // Show parsed info
-        this.elements.parsedInfo.innerHTML = '<p>' + PromptParser.format(parsed) + '</p>';
-        this.elements.parsedInfo.style.display = 'block';
-
-        // Get available categories
-        const sounds = AudioManager.getAllSounds();
-        const categories = [...new Set(sounds.map(s => s.category))].filter(c => c !== 'uncategorized');
-
-        if (categories.length === 0) {
-            alert('Please upload and categorize sounds first!');
-            return;
-        }
-
-        // Create pattern
-        const pattern = PatternTemplates.createFromAvailable(parsed.genre, categories);
-        if (!pattern) {
-            alert('Pattern not found');
-            return;
-        }
-
-        pattern.bpm = parsed.bpm;
-        this.currentPattern = pattern;
-
-        // Display
-        this.displayPattern(pattern);
-
-        // Init sequencer
-        Sequencer.init(pattern, pattern.bpm);
-
-        // Enable buttons
-        this.elements.playBtn.disabled = false;
-        this.elements.exportWavBtn.disabled = false;
-        this.elements.exportMp3Btn.disabled = false;
-
-        this.status('Pattern generated!');
     },
 
     displayPattern(pattern) {
+        console.log('Displaying pattern...');
         const container = this.elements.patternDisplay;
         container.innerHTML = '';
 
@@ -194,20 +291,27 @@ const UI = {
         });
 
         container.appendChild(grid);
+        console.log('✓ Pattern displayed');
     },
 
     async play() {
-        await AudioManager.ensureRunning();
+        console.log('▶️ Starting playback...');
+        try {
+            await AudioManager.ensureRunning();
+            Sequencer.onStepChange = (step) => this.highlightStep(step);
+            Sequencer.start();
 
-        Sequencer.onStepChange = (step) => this.highlightStep(step);
-        Sequencer.start();
-
-        this.elements.playBtn.disabled = true;
-        this.elements.stopBtn.disabled = false;
-        this.status('Playing...');
+            this.elements.playBtn.disabled = true;
+            this.elements.stopBtn.disabled = false;
+            this.status('Playing...');
+        } catch (error) {
+            console.error('❌ Play error:', error);
+            alert('Playback error: ' + error.message);
+        }
     },
 
     stop() {
+        console.log('⏹️ Stopping playback...');
         Sequencer.stop();
 
         this.elements.playBtn.disabled = false;
@@ -230,6 +334,8 @@ const UI = {
     },
 
     async export(format) {
+        console.log('💾 Exporting as', format);
+
         if (!this.currentPattern) {
             alert('No pattern to export');
             return;
@@ -252,6 +358,7 @@ const UI = {
             Exporter.download(blob, filename);
             this.status('Exported: ' + filename);
         } catch (error) {
+            console.error('❌ Export error:', error);
             alert('Export failed: ' + error.message);
             this.status('Export failed');
         } finally {
@@ -261,12 +368,17 @@ const UI = {
     },
 
     async loadExisting() {
-        const sounds = await AudioManager.loadFromStorage();
-        sounds.forEach(sound => {
-            this.addSoundItem(sound.id, sound);
-        });
-        if (sounds.length > 0) {
-            this.status('Loaded ' + sounds.length + ' sounds from storage');
+        console.log('📦 Loading existing sounds from storage...');
+        try {
+            const sounds = await AudioManager.loadFromStorage();
+            sounds.forEach(sound => {
+                this.addSoundItem(sound.id, sound);
+            });
+            if (sounds.length > 0) {
+                this.status('Loaded ' + sounds.length + ' sounds from storage');
+            }
+        } catch (error) {
+            console.error('❌ Load existing error:', error);
         }
     },
 
@@ -274,6 +386,6 @@ const UI = {
         if (this.elements.status) {
             this.elements.status.textContent = msg;
         }
-        console.log('Status:', msg);
+        console.log('📊 Status:', msg);
     }
 };
