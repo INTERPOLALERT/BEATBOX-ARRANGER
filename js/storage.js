@@ -1,135 +1,70 @@
-/**
- * storage.js - IndexedDB management using localforage
- * Handles persistent storage of uploaded audio files
- */
-
+// storage.js - IndexedDB storage using localforage
 const StorageManager = {
-    // Initialize localforage instance
     store: null,
 
-    /**
-     * Initialize the storage system
-     */
     init() {
-        this.store = localforage.createInstance({
-            name: 'beatbox-arranger',
-            storeName: 'sounds',
-            description: 'Beatbox sound library storage'
-        });
-        console.log('Storage initialized');
-    },
-
-    /**
-     * Save a sound to IndexedDB
-     * @param {string} id - Unique identifier for the sound
-     * @param {Object} soundData - Sound data object
-     * @returns {Promise}
-     */
-    async saveSound(id, soundData) {
         try {
-            await this.store.setItem(id, soundData);
-            console.log(`Sound saved: ${id}`);
+            if (typeof localforage === 'undefined') {
+                console.error('localforage not loaded!');
+                return false;
+            }
+
+            this.store = localforage.createInstance({
+                name: 'beatbox-arranger',
+                storeName: 'sounds'
+            });
+
+            console.log('✓ Storage initialized');
             return true;
         } catch (error) {
-            console.error('Error saving sound:', error);
-            throw error;
+            console.error('Storage init failed:', error);
+            return false;
         }
     },
 
-    /**
-     * Get a sound from IndexedDB
-     * @param {string} id - Sound identifier
-     * @returns {Promise<Object>}
-     */
-    async getSound(id) {
+    async saveSound(id, soundData) {
+        if (!this.store) return false;
         try {
-            const sound = await this.store.getItem(id);
-            return sound;
+            await this.store.setItem(id, soundData);
+            return true;
         } catch (error) {
-            console.error('Error getting sound:', error);
-            throw error;
+            console.error('Save sound failed:', error);
+            return false;
         }
     },
 
-    /**
-     * Get all sounds from IndexedDB
-     * @returns {Promise<Array>}
-     */
+    async getSound(id) {
+        if (!this.store) return null;
+        try {
+            return await this.store.getItem(id);
+        } catch (error) {
+            console.error('Get sound failed:', error);
+            return null;
+        }
+    },
+
     async getAllSounds() {
+        if (!this.store) return [];
         try {
             const sounds = [];
             await this.store.iterate((value, key) => {
                 sounds.push({ id: key, ...value });
             });
-            console.log(`Retrieved ${sounds.length} sounds from storage`);
             return sounds;
         } catch (error) {
-            console.error('Error getting all sounds:', error);
-            throw error;
+            console.error('Get all sounds failed:', error);
+            return [];
         }
     },
 
-    /**
-     * Delete a sound from IndexedDB
-     * @param {string} id - Sound identifier
-     * @returns {Promise}
-     */
     async deleteSound(id) {
+        if (!this.store) return false;
         try {
             await this.store.removeItem(id);
-            console.log(`Sound deleted: ${id}`);
             return true;
         } catch (error) {
-            console.error('Error deleting sound:', error);
-            throw error;
-        }
-    },
-
-    /**
-     * Clear all sounds from IndexedDB
-     * @returns {Promise}
-     */
-    async clearAll() {
-        try {
-            await this.store.clear();
-            console.log('All sounds cleared from storage');
-            return true;
-        } catch (error) {
-            console.error('Error clearing storage:', error);
-            throw error;
-        }
-    },
-
-    /**
-     * Get storage statistics
-     * @returns {Promise<Object>}
-     */
-    async getStats() {
-        try {
-            const sounds = await this.getAllSounds();
-            let totalSize = 0;
-
-            sounds.forEach(sound => {
-                if (sound.arrayBuffer) {
-                    totalSize += sound.arrayBuffer.byteLength;
-                }
-            });
-
-            return {
-                count: sounds.length,
-                totalSize: totalSize,
-                totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2)
-            };
-        } catch (error) {
-            console.error('Error getting stats:', error);
-            return { count: 0, totalSize: 0, totalSizeMB: 0 };
+            console.error('Delete sound failed:', error);
+            return false;
         }
     }
 };
-
-// Auto-initialize on load
-if (typeof localforage !== 'undefined') {
-    StorageManager.init();
-} else {
-    console.error('localforage library not loaded!');
-}

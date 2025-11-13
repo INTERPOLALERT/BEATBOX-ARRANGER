@@ -1,60 +1,47 @@
-/**
- * app.js - Main application entry point
- * Initializes all modules and starts the application
- */
-
-// Application state
+// app.js - Main application
 const App = {
     initialized: false,
 
-    /**
-     * Initialize the application
-     */
     async init() {
-        if (this.initialized) {
-            return;
-        }
+        if (this.initialized) return;
 
-        console.log('Beatbox Arranger starting...');
+        console.log('🎵 Beatbox Arranger v2.0 Starting...');
 
         try {
-            // Check for required APIs
-            this.checkBrowserSupport();
+            // Check browser support
+            this.checkSupport();
+
+            // Initialize storage
+            if (!StorageManager.init()) {
+                console.warn('Storage initialization failed - continuing without persistence');
+            }
 
             // Initialize UI
             UI.init();
 
-            // Initialize AudioContext on first user interaction
-            // Note: AudioContext is created lazily to avoid browser restrictions
-            console.log('AudioContext will be initialized on first interaction');
-
-            // Load existing sounds from IndexedDB
-            await UI.loadExistingSounds();
+            // Load existing sounds
+            await UI.loadExisting();
 
             this.initialized = true;
 
-            console.log('Beatbox Arranger ready!');
-            console.log('Upload sounds and describe your beat to get started.');
+            console.log('✓ App ready!');
+            console.log('📝 Upload sounds and describe your beat to get started');
+            console.log('📝 Example prompts: "trap beat 140 bpm", "house 128 bpm", "boom bap 90 bpm"');
 
         } catch (error) {
-            console.error('Initialization failed:', error);
-            alert(`Failed to initialize app: ${error.message}`);
+            console.error('❌ Initialization failed:', error);
+            alert('Failed to initialize: ' + error.message);
         }
     },
 
-    /**
-     * Check browser support for required APIs
-     */
-    checkBrowserSupport() {
+    checkSupport() {
         const required = {
             'Web Audio API': window.AudioContext || window.webkitAudioContext,
             'IndexedDB': window.indexedDB,
-            'localforage': typeof localforage !== 'undefined',
             'File API': window.File && window.FileReader
         };
 
         const missing = [];
-
         for (const [name, supported] of Object.entries(required)) {
             if (!supported) {
                 missing.push(name);
@@ -62,58 +49,32 @@ const App = {
         }
 
         if (missing.length > 0) {
-            throw new Error(`Your browser does not support: ${missing.join(', ')}. Please use a modern browser.`);
+            throw new Error('Browser not supported. Missing: ' + missing.join(', '));
         }
 
-        console.log('Browser support check passed');
+        console.log('✓ Browser support OK');
     },
 
-    /**
-     * Get app info
-     */
-    getInfo() {
-        return {
-            name: 'Beatbox Arranger',
-            version: '1.0.0',
-            soundsLoaded: Object.keys(AudioManager.sounds).length,
-            audioContextState: AudioManager.context ? AudioManager.context.state : 'not initialized',
-            sequencerPlaying: Sequencer.isPlaying,
-            currentPattern: UI.currentPattern ? UI.currentPattern.name : null
-        };
-    },
-
-    /**
-     * Debug information
-     */
     debug() {
-        console.log('=== Beatbox Arranger Debug Info ===');
-        console.log('App Info:', this.getInfo());
-        console.log('Sounds:', AudioManager.getAllSounds());
-        console.log('Pattern:', Sequencer.getPattern());
-        console.log('Available Genres:', PatternTemplates.getGenreInfo());
-        console.log('=====================================');
+        console.log('=== DEBUG INFO ===');
+        console.log('Sounds loaded:', Object.keys(AudioManager.sounds).length);
+        console.log('AudioContext state:', AudioManager.context ? AudioManager.context.state : 'not initialized');
+        console.log('Playing:', Sequencer.isPlaying);
+        console.log('Current pattern:', UI.currentPattern);
+        console.log('Available genres:', PatternTemplates.getGenreInfo());
+        console.log('==================');
     }
 };
 
-// Initialize app when DOM is ready
+// Start when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => App.init());
 } else {
     App.init();
 }
 
-// Expose App to window for debugging
+// Expose for debugging
 window.BeatboxApp = App;
+window.debug = () => App.debug();
 
-// Log welcome message
-console.log(`
-╔═══════════════════════════════════════╗
-║     🎵 BEATBOX ARRANGER v1.0.0 🎵    ║
-╠═══════════════════════════════════════╣
-║  AI-powered beatbox pattern arranger  ║
-║                                       ║
-║  Commands:                            ║
-║  - BeatboxApp.debug()                 ║
-║  - BeatboxApp.getInfo()               ║
-╚═══════════════════════════════════════╝
-`);
+console.log('Type debug() in console for debug info');
