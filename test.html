@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beatbox Arranger - TEST MODE</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        .test-section {
+            border: 2px solid #00ff00;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .pass { color: #00ff00; }
+        .fail { color: #ff0000; }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔬 BEATBOX ARRANGER - DIAGNOSTIC MODE</h1>
+
+    <div class="test-section">
+        <h2>1. Library Loading Test</h2>
+        <div id="libTest">Testing...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Module Loading Test</h2>
+        <div id="moduleTest">Testing...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. DOM Elements Test</h2>
+        <div id="domTest">Testing...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Event Listener Test</h2>
+        <button id="testButton">Click Me to Test</button>
+        <div id="eventTest">Not clicked yet</div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Console Output</h2>
+        <div id="consoleOutput" style="max-height: 300px; overflow-y: scroll; background: #000; padding: 10px;"></div>
+    </div>
+
+    <!-- Load libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+
+    <!-- Load modules -->
+    <script src="js/storage.js"></script>
+    <script src="js/audioManager.js"></script>
+    <script src="js/patterns.js"></script>
+    <script src="js/promptParser.js"></script>
+    <script src="js/sequencer.js"></script>
+    <script src="js/exporter.js"></script>
+
+    <script>
+        // Intercept console.log
+        const consoleOutput = document.getElementById('consoleOutput');
+        const originalLog = console.log;
+        const originalError = console.error;
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            consoleOutput.innerHTML += '<div class="pass">[LOG] ' + args.join(' ') + '</div>';
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            consoleOutput.innerHTML += '<div class="fail">[ERROR] ' + args.join(' ') + '</div>';
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        };
+
+        // Test 1: Library Loading
+        const libTest = document.getElementById('libTest');
+        let libStatus = '';
+
+        if (typeof localforage !== 'undefined') {
+            libStatus += '<div class="pass">✓ localforage loaded</div>';
+        } else {
+            libStatus += '<div class="fail">✗ localforage NOT loaded</div>';
+        }
+
+        if (typeof lamejs !== 'undefined') {
+            libStatus += '<div class="pass">✓ lamejs loaded</div>';
+        } else {
+            libStatus += '<div class="fail">✗ lamejs NOT loaded</div>';
+        }
+
+        libTest.innerHTML = libStatus;
+
+        // Test 2: Module Loading
+        const moduleTest = document.getElementById('moduleTest');
+        let moduleStatus = '';
+
+        const modules = {
+            'StorageManager': typeof StorageManager !== 'undefined',
+            'AudioManager': typeof AudioManager !== 'undefined',
+            'PatternTemplates': typeof PatternTemplates !== 'undefined',
+            'PromptParser': typeof PromptParser !== 'undefined',
+            'Sequencer': typeof Sequencer !== 'undefined',
+            'Exporter': typeof Exporter !== 'undefined'
+        };
+
+        for (const [name, loaded] of Object.entries(modules)) {
+            if (loaded) {
+                moduleStatus += `<div class="pass">✓ ${name} loaded</div>`;
+            } else {
+                moduleStatus += `<div class="fail">✗ ${name} NOT loaded</div>`;
+            }
+        }
+
+        moduleTest.innerHTML = moduleStatus;
+
+        // Test 3: DOM Elements (from actual app)
+        const domTest = document.getElementById('domTest');
+        domTest.innerHTML = '<div class="pass">Test page has minimal DOM - check main app</div>';
+
+        // Test 4: Event Listeners
+        const testButton = document.getElementById('testButton');
+        const eventTest = document.getElementById('eventTest');
+
+        testButton.addEventListener('click', () => {
+            eventTest.innerHTML = '<div class="pass">✓ Event listener works!</div>';
+            console.log('Button clicked successfully');
+        });
+
+        // Test PromptParser
+        console.log('=== Testing PromptParser ===');
+        const testPrompts = [
+            'trap beat 140 bpm',
+            'boom bap 90 bpm',
+            'house 128 bpm'
+        ];
+
+        testPrompts.forEach(prompt => {
+            const parsed = PromptParser.parse(prompt);
+            console.log('Prompt:', prompt);
+            console.log('Parsed:', JSON.stringify(parsed));
+        });
+
+        // Test PatternTemplates
+        console.log('=== Testing PatternTemplates ===');
+        const genres = PatternTemplates.getAllGenres();
+        console.log('Available genres:', genres.join(', '));
+
+        const trapPattern = PatternTemplates.getPattern('trap');
+        console.log('Trap pattern:', trapPattern ? 'OK' : 'FAILED');
+
+        // Test StorageManager
+        console.log('=== Testing StorageManager ===');
+        const storageInit = StorageManager.init();
+        console.log('Storage init:', storageInit ? 'OK' : 'FAILED');
+
+        console.log('=== ALL BASIC TESTS COMPLETE ===');
+        console.log('If all tests pass, the problem is in ui.js or app.js');
+    </script>
+</body>
+</html>

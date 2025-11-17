@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Beatbox Arranger - MINIMAL WORKING VERSION</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; }
+        button {
+            padding: 12px 24px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+        }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .sound-item {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        select {
+            padding: 8px;
+            font-size: 14px;
+        }
+        .pattern-grid {
+            overflow-x: auto;
+        }
+        .pattern-row {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .pattern-label {
+            min-width: 100px;
+            font-weight: bold;
+        }
+        .pattern-step {
+            width: 30px;
+            height: 30px;
+            border: 2px solid #ddd;
+            margin: 2px;
+            cursor: pointer;
+            display: inline-block;
+        }
+        .pattern-step.active {
+            background: #667eea;
+        }
+        .pattern-step.playing {
+            background: #28a745;
+        }
+        #status {
+            padding: 15px;
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 Beatbox Arranger - Minimal Working Version</h1>
+
+    <div class="section">
+        <h2>1. Upload Sounds</h2>
+        <input type="file" id="fileInput" accept="audio/*" multiple>
+        <div id="soundLibrary"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. Generate Pattern</h2>
+        <input type="text" id="promptInput" placeholder="e.g., trap beat 140 bpm">
+        <button id="generateBtn" class="btn-primary">Generate</button>
+        <div id="parsedInfo"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. Pattern</h2>
+        <div id="patternDisplay">No pattern yet...</div>
+    </div>
+
+    <div class="section">
+        <h2>4. Controls</h2>
+        <button id="playBtn" class="btn-success" disabled>▶ Play</button>
+        <button id="stopBtn" class="btn-danger" disabled>■ Stop</button>
+        <div id="status">Ready</div>
+    </div>
+
+    <!-- Load libraries from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+
+    <!-- ALL CODE IN ONE FILE FOR TESTING -->
+    <script>
+        console.log('🎵 Starting Beatbox Arranger...');
+
+        // ===== STORAGE =====
+        const Storage = {
+            store: null,
+            init() {
+                if (typeof localforage === 'undefined') {
+                    console.error('localforage not loaded');
+                    return false;
+                }
+                this.store = localforage.createInstance({name: 'beatbox', storeName: 'sounds'});
+                console.log('✓ Storage ready');
+                return true;
+            }
+        };
+
+        // ===== AUDIO MANAGER =====
+        const Audio = {
+            context: null,
+            buffers: {},
+            sounds: {},
+
+            async init() {
+                if (!this.context) {
+                    this.context = new (window.AudioContext || window.webkitAudioContext)();
+                    console.log('✓ AudioContext created');
+                }
+                if (this.context.state === 'suspended') {
+                    await this.context.resume();
+                }
+            },
+
+            async loadFile(file, id, category) {
+                await this.init();
+                const arrayBuffer = await file.arrayBuffer();
+                const audioBuffer = await this.context.decodeAudioData(arrayBuffer.slice(0));
+                this.buffers[id] = audioBuffer;
+                this.sounds[id] = {name: file.name, category: category, duration: audioBuffer.duration};
+                console.log('✓ Loaded:', file.name);
+                return this.sounds[id];
+            },
+
+            play(id, time = null) {
+                if (!this.buffers[id]) return null;
+                const source = this.context.createBufferSource();
+                source.buffer = this.buffers[id];
+                source.connect(this.context.destination);
+                source.start(time || this.context.currentTime);
+                return source;
+            },
+
+            updateCategory(id, category) {
+                if (this.sounds[id]) {
+                    this.sounds[id].category = category;
+                }
+            },
+
+            getSoundsByCategory(category) {
+                return Object.keys(this.sounds)
+                    .filter(id => this.sounds[id].category === category)
+                    .map(id => ({id, ...this.sounds[id]}));
+            },
+
+            getAllSounds() {
+                return Object.keys(this.sounds).map(id => ({id, ...this.sounds[id]}));
+            }
+        };
+
+        // ===== PATTERNS =====
+        const Patterns = {
+            trap: {
+                name: 'Trap', bpm: 140, steps: 16,
+                tracks: {
+                    kick: [1,0,0,0,1,0,0,0,1,0,1,0,0,0,1,0],
+                    snare: [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+                    hihat: [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1]
+                }
+            },
+            house: {
+                name: 'House', bpm: 128, steps: 16,
+                tracks: {
+                    kick: [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+                    snare: [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+                    hihat: [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0]
+                }
+            },
+
+            get(genre, categories) {
+                const template = this[genre];
+                if (!template) return null;
+
+                const pattern = {
+                    name: template.name,
+                    bpm: template.bpm,
+                    steps: template.steps,
+                    tracks: {}
+                };
+
+                categories.forEach(cat => {
+                    if (template.tracks[cat]) {
+                        pattern.tracks[cat] = [...template.tracks[cat]];
+                    }
+                });
+
+                return pattern;
+            }
+        };
+
+        // ===== PARSER =====
+        const Parser = {
+            parse(text) {
+                const lower = text.toLowerCase();
+                let genre = null;
+                let bpm = 120;
+
+                if (lower.includes('trap')) {
+                    genre = 'trap';
+                    bpm = 140;
+                } else if (lower.includes('house')) {
+                    genre = 'house';
+                    bpm = 128;
+                }
+
+                const match = text.match(/(\d{2,3})/);
+                if (match) bpm = parseInt(match[1]);
+
+                return {genre, bpm, success: genre !== null};
+            }
+        };
+
+        // ===== SEQUENCER =====
+        const Sequencer = {
+            pattern: null,
+            bpm: 120,
+            isPlaying: false,
+            currentStep: 0,
+            nextTime: 0,
+            timerID: null,
+            callback: null,
+
+            init(pattern, bpm) {
+                this.pattern = pattern;
+                this.bpm = bpm;
+                console.log('✓ Sequencer ready');
+            },
+
+            start() {
+                if (!this.pattern || this.isPlaying) return;
+                this.isPlaying = true;
+                this.currentStep = 0;
+                this.nextTime = Audio.context.currentTime;
+                this.schedule();
+                console.log('✓ Playing');
+            },
+
+            stop() {
+                this.isPlaying = false;
+                if (this.timerID) clearTimeout(this.timerID);
+                console.log('✓ Stopped');
+            },
+
+            schedule() {
+                while (this.nextTime < Audio.context.currentTime + 0.1) {
+                    this.playStep(this.currentStep, this.nextTime);
+                    this.advance();
+                }
+                if (this.isPlaying) {
+                    this.timerID = setTimeout(() => this.schedule(), 25);
+                }
+            },
+
+            playStep(step, time) {
+                if (this.callback) this.callback(step);
+
+                Object.keys(this.pattern.tracks).forEach(category => {
+                    if (this.pattern.tracks[category][step] === 1) {
+                        const sounds = Audio.getSoundsByCategory(category);
+                        if (sounds.length > 0) {
+                            Audio.play(sounds[0].id, time);
+                        }
+                    }
+                });
+            },
+
+            advance() {
+                const secondsPerBeat = 60.0 / this.bpm;
+                const secondsPerStep = secondsPerBeat / 4;
+                this.nextTime += secondsPerStep;
+                this.currentStep++;
+                if (this.currentStep >= this.pattern.steps) {
+                    this.currentStep = 0;
+                }
+            }
+        };
+
+        // ===== UI =====
+        const UI = {
+            currentPattern: null,
+
+            init() {
+                document.getElementById('fileInput').addEventListener('change', (e) => this.handleFiles(e));
+                document.getElementById('generateBtn').addEventListener('click', () => this.generate());
+                document.getElementById('playBtn').addEventListener('click', () => this.play());
+                document.getElementById('stopBtn').addEventListener('click', () => this.stop());
+                console.log('✓ UI ready');
+            },
+
+            async handleFiles(e) {
+                const files = e.target.files;
+                for (const file of files) {
+                    const id = 'sound_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                    const sound = await Audio.loadFile(file, id, 'uncategorized');
+                    this.addSoundItem(id, sound);
+                }
+                e.target.value = '';
+            },
+
+            addSoundItem(id, sound) {
+                const div = document.createElement('div');
+                div.className = 'sound-item';
+                div.innerHTML = `
+                    <span>${sound.name}</span>
+                    <div>
+                        <button onclick="Audio.play('${id}')">▶</button>
+                        <select onchange="Audio.updateCategory('${id}', this.value)">
+                            <option value="uncategorized">Select...</option>
+                            <option value="kick">Kick</option>
+                            <option value="snare">Snare</option>
+                            <option value="hihat">Hi-Hat</option>
+                        </select>
+                    </div>
+                `;
+                document.getElementById('soundLibrary').appendChild(div);
+            },
+
+            generate() {
+                console.log('🎵 Generate clicked');
+
+                const prompt = document.getElementById('promptInput').value.trim();
+                if (!prompt) {
+                    alert('Enter a prompt (e.g., "trap beat 140 bpm")');
+                    return;
+                }
+
+                const parsed = Parser.parse(prompt);
+                if (!parsed.success) {
+                    alert('Genre not recognized. Try: trap or house');
+                    return;
+                }
+
+                const sounds = Audio.getAllSounds();
+                const categories = [...new Set(sounds.map(s => s.category))].filter(c => c !== 'uncategorized');
+
+                if (categories.length === 0) {
+                    alert('Please upload and categorize sounds first!');
+                    return;
+                }
+
+                const pattern = Patterns.get(parsed.genre, categories);
+                if (!pattern || Object.keys(pattern.tracks).length === 0) {
+                    alert('No matching sounds for this pattern');
+                    return;
+                }
+
+                pattern.bpm = parsed.bpm;
+                this.currentPattern = pattern;
+
+                this.displayPattern(pattern);
+                Sequencer.init(pattern, pattern.bpm);
+
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('parsedInfo').textContent = `Genre: ${pattern.name} | BPM: ${pattern.bpm}`;
+                document.getElementById('status').textContent = 'Pattern generated!';
+
+                console.log('✓ Pattern generated');
+            },
+
+            displayPattern(pattern) {
+                const container = document.getElementById('patternDisplay');
+                container.innerHTML = '';
+
+                Object.keys(pattern.tracks).forEach(category => {
+                    const row = document.createElement('div');
+                    row.className = 'pattern-row';
+
+                    const label = document.createElement('span');
+                    label.className = 'pattern-label';
+                    label.textContent = category.toUpperCase();
+                    row.appendChild(label);
+
+                    for (let i = 0; i < pattern.steps; i++) {
+                        const step = document.createElement('div');
+                        step.className = 'pattern-step';
+                        step.dataset.step = i;
+                        if (pattern.tracks[category][i] === 1) {
+                            step.classList.add('active');
+                        }
+                        row.appendChild(step);
+                    }
+
+                    container.appendChild(row);
+                });
+            },
+
+            async play() {
+                await Audio.init();
+                Sequencer.callback = (step) => {
+                    document.querySelectorAll('.pattern-step').forEach(el => el.classList.remove('playing'));
+                    document.querySelectorAll(`.pattern-step[data-step="${step}"]`).forEach(el => el.classList.add('playing'));
+                };
+                Sequencer.start();
+                document.getElementById('playBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('status').textContent = 'Playing...';
+            },
+
+            stop() {
+                Sequencer.stop();
+                document.querySelectorAll('.pattern-step').forEach(el => el.classList.remove('playing'));
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('status').textContent = 'Stopped';
+            }
+        };
+
+        // ===== INITIALIZE =====
+        Storage.init();
+        UI.init();
+        console.log('✓ App ready');
+        console.log('📝 Upload sounds, categorize them, then type "trap beat 140 bpm" and click Generate');
+    </script>
+</body>
+</html>
