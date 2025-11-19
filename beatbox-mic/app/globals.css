@@ -1,0 +1,248 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================================
+ * BEATBOX MIC - GLOBAL STYLES
+ * Design System: Pure black theme for OLED screens, professional audio aesthetic
+ * ============================================================================= */
+
+@layer base {
+  :root {
+    /* Background Colors */
+    --bg-primary: #000000;
+    --bg-secondary: #0a0a0a;
+    --bg-elevated: #141414;
+
+    /* UI Colors */
+    --ui-red: #ff4444;
+    --ui-green: #00ff88;
+    --ui-yellow: #ffcc00;
+    --ui-blue: #00aaff;
+
+    /* Text Colors */
+    --text-primary: #ffffff;
+    --text-secondary: #888888;
+    --text-disabled: #444444;
+
+    /* UI States */
+    --hover-overlay: rgba(255, 255, 255, 0.05);
+    --active-overlay: rgba(255, 255, 255, 0.1);
+    --border-color: #222222;
+
+    /* Audio Visualization */
+    --waveform-color: #00ff88;
+    --spectrum-color: #00aaff;
+    --peak-warning: #ffcc00;
+    --peak-danger: #ff4444;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-bg-primary text-text-primary;
+    font-family: 'Inter', sans-serif;
+    font-feature-settings: 'cv11', 'ss01';
+    font-variation-settings: 'opsz' 32;
+  }
+
+  /* Custom scrollbar for dark theme */
+  ::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 6px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #333333;
+  }
+}
+
+@layer components {
+  /* Button Variants */
+  .btn-primary {
+    @apply px-6 py-3 bg-ui-blue hover:bg-[#0099ee] active:bg-[#0088dd] text-white font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-glow-blue;
+  }
+
+  .btn-success {
+    @apply px-6 py-3 bg-ui-green hover:bg-[#00ee77] active:bg-[#00dd66] text-black font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-glow-green;
+  }
+
+  .btn-danger {
+    @apply px-6 py-3 bg-ui-red hover:bg-[#ee3333] active:bg-[#dd2222] text-white font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-glow-red;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 bg-bg-elevated hover:bg-[#1a1a1a] active:bg-[#252525] text-text-primary border border-border-color rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Card Component */
+  .card {
+    @apply bg-bg-elevated border border-border-color rounded-lg p-6 shadow-card;
+  }
+
+  .card-elevated {
+    @apply bg-bg-elevated border border-border-color rounded-lg p-6 shadow-elevated;
+  }
+
+  /* Input Fields */
+  .input {
+    @apply w-full px-4 py-3 bg-bg-secondary border border-border-color rounded-lg text-text-primary placeholder:text-text-disabled focus:outline-none focus:ring-2 focus:ring-ui-blue focus:border-transparent transition-all;
+  }
+
+  /* EQ Slider (vertical) */
+  .eq-slider {
+    @apply w-8 h-48 appearance-none bg-bg-secondary rounded-full cursor-pointer accent-ui-green;
+    writing-mode: bt-lr; /* Vertical orientation */
+  }
+
+  .eq-slider::-webkit-slider-thumb {
+    @apply appearance-none w-8 h-8 bg-ui-green rounded-full cursor-pointer shadow-glow-green;
+  }
+
+  .eq-slider::-moz-range-thumb {
+    @apply w-8 h-8 bg-ui-green rounded-full cursor-pointer shadow-glow-green border-0;
+  }
+
+  /* Level Meter */
+  .level-meter {
+    @apply w-full h-2 bg-bg-secondary rounded-full overflow-hidden;
+  }
+
+  .level-meter-fill {
+    @apply h-full bg-gradient-to-r from-ui-green via-ui-yellow to-ui-red transition-all duration-100;
+  }
+
+  /* Waveform Canvas */
+  .waveform-canvas {
+    @apply w-full h-32 bg-bg-secondary rounded-lg border border-border-color;
+  }
+
+  /* Preset Card */
+  .preset-card {
+    @apply bg-bg-elevated border border-border-color rounded-lg p-4 hover:border-ui-blue transition-all cursor-pointer;
+  }
+
+  .preset-card:hover {
+    @apply shadow-glow-blue;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply bg-ui-green/10 text-ui-green border border-ui-green/30;
+  }
+
+  .badge-warning {
+    @apply bg-ui-yellow/10 text-ui-yellow border border-ui-yellow/30;
+  }
+
+  .badge-danger {
+    @apply bg-ui-red/10 text-ui-red border border-ui-red/30;
+  }
+
+  .badge-info {
+    @apply bg-ui-blue/10 text-ui-blue border border-ui-blue/30;
+  }
+
+  /* Skeleton Loader */
+  .skeleton {
+    @apply bg-bg-elevated animate-pulse rounded;
+  }
+
+  /* Toast Notification */
+  .toast {
+    @apply bg-bg-elevated border border-border-color rounded-lg p-4 shadow-elevated;
+  }
+}
+
+@layer utilities {
+  /* Text Gradients */
+  .text-gradient-blue {
+    @apply bg-gradient-to-r from-ui-blue to-[#00ddff] bg-clip-text text-transparent;
+  }
+
+  .text-gradient-green {
+    @apply bg-gradient-to-r from-ui-green to-[#00ffaa] bg-clip-text text-transparent;
+  }
+
+  /* Glow Effects */
+  .glow-blue {
+    box-shadow: 0 0 20px rgba(0, 170, 255, 0.3);
+  }
+
+  .glow-green {
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+  }
+
+  .glow-red {
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
+  }
+
+  /* Clipping Indicator */
+  .clipping {
+    @apply animate-pulse shadow-glow-red;
+  }
+}
+
+/* =============================================================================
+ * FONT LOADING (Inter & JetBrains Mono)
+ * ============================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+/* =============================================================================
+ * ANIMATIONS
+ * ============================================================================= */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(0, 255, 136, 0.6);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-in-out;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
