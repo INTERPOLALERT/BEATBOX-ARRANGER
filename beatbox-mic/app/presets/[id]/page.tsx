@@ -18,6 +18,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Comments from '@/components/social/Comments';
 
 interface Preset {
   id: string;
@@ -323,12 +324,10 @@ export default function PresetDetailPage({ params }: { params: { id: string } })
           </div>
         </div>
 
-        {/* Comments Section (Placeholder) */}
-        <div className="card mt-8">
+        {/* Comments Section */}
+        <div className="mt-8">
           <h2 className="text-xl font-bold mb-4">💬 Comments</h2>
-          <p className="text-text-secondary text-center py-8">
-            Comments coming soon...
-          </p>
+          <Comments presetId={params.id} />
         </div>
       </div>
     </div>

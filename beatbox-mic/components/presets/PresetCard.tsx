@@ -50,15 +50,45 @@ export default function PresetCard({
   const [liked, setLiked] = useState(isLiked);
   const [likes, setLikes] = useState(likeCount);
 
-  const handleLike = (e: React.MouseEvent) => {
+  const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    setLiked(!liked);
-    setLikes(liked ? likes - 1 : likes + 1);
+    // Optimistic update
+    const newLiked = !liked;
+    setLiked(newLiked);
+    setLikes(newLiked ? likes + 1 : likes - 1);
 
-    if (onLike) {
-      onLike();
+    try {
+      const response = await fetch(`/api/presets/${id}/like`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Update with server response
+        setLiked(data.liked);
+        setLikes(data.likeCount);
+
+        if (onLike) {
+          onLike();
+        }
+      } else {
+        // Revert on error
+        setLiked(liked);
+        setLikes(likes);
+
+        if (response.status === 401) {
+          // Redirect to login if not authenticated
+          window.location.href = '/login';
+        }
+      }
+    } catch (error) {
+      // Revert on error
+      setLiked(liked);
+      setLikes(likes);
+      console.error('Failed to toggle like:', error);
     }
   };
 
