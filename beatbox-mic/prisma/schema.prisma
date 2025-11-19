@@ -1,0 +1,384 @@
+// Beatbox Mic - Database Schema
+// Complete Prisma schema with all models for the application
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============================================================================
+// USER AUTHENTICATION & MANAGEMENT
+// ============================================================================
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  emailVerified     DateTime?
+  passwordHash      String?   // Null if OAuth-only user
+  name              String?
+  username          String?   @unique
+  bio               String?   @db.Text
+  profileImage      String?   // URL to profile picture
+  role              Role      @default(USER)
+
+  // Two-Factor Authentication
+  twoFactorEnabled  Boolean   @default(false)
+  twoFactorSecret   String?   // TOTP secret (encrypted)
+  backupCodes       String[]  // Encrypted backup codes
+
+  // Subscription & Billing
+  subscriptionTier  SubscriptionTier @default(FREE)
+  stripeCustomerId  String?   @unique
+
+  // Usage Quotas (free tier limits)
+  uploadCount       Int       @default(0)
+  presetCount       Int       @default(0)
+  downloadCountThisMonth Int  @default(0)
+
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  lastLoginAt       DateTime?
+
+  // Soft delete
+  deletedAt         DateTime?
+
+  // Relations
+  accounts          Account[]
+  sessions          Session[]
+  presets           Preset[]
+  comments          Comment[]
+  presetLikes       PresetLike[]
+  followers         Follow[]  @relation("UserFollowers")
+  following         Follow[]  @relation("UserFollowing")
+  notifications     Notification[]
+  analytics         UserAnalytics[]
+
+  @@index([email])
+  @@index([username])
+  @@index([subscriptionTier])
+  @@index([createdAt])
+}
+
+enum Role {
+  USER
+  PREMIUM
+  ADMIN
+  MODERATOR
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+  PRO
+}
+
+// OAuth Accounts (NextAuth integration)
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// Sessions (NextAuth)
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expires])
+}
+
+// Email Verification Tokens
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@index([expires])
+}
+
+// ============================================================================
+// PRESET SYSTEM (CORE FEATURE)
+// ============================================================================
+
+model Preset {
+  id                String    @id @default(cuid())
+  name              String
+  description       String?   @db.Text
+
+  // Original audio file metadata
+  audioFileUrl      String    // S3/R2 URL
+  audioFileName     String
+  audioDuration     Float     // Duration in seconds
+  sampleRate        Int       // Sample rate in Hz (typically 44100)
+  bitDepth          Int?      // Bit depth (16, 24, 32)
+  fileSize          Int       // File size in bytes
+
+  // Audio Analysis Results (stored as JSON for flexibility)
+  eqSettings        Json      // { bands: [ { frequency, gain, q, type }, ... ] }
+  compressorSettings Json     // { threshold, ratio, attack, release, knee, makeup }
+  reverbSettings    Json      // { type, roomSize, decay, preDelay, wetDry, damping }
+  limiterSettings   Json      // { ceiling, release }
+  filterSettings    Json      // { highPass: { freq }, lowPass: { freq } }
+
+  // Metadata & Categorization
+  tags              String[]  // ["bass-heavy", "crisp", "warm", "lo-fi", etc.]
+  isPublic          Boolean   @default(false)
+  isFeatured        Boolean   @default(false) // Admin can feature presets
+
+  // Statistics
+  viewCount         Int       @default(0)
+  downloadCount     Int       @default(0)
+  likeCount         Int       @default(0)
+  commentCount      Int       @default(0)
+
+  // Moderation
+  isFlagged         Boolean   @default(false)
+  flagReason        String?
+  moderationStatus  ModerationStatus @default(PENDING)
+  moderatedAt       DateTime?
+  moderatedBy       String?   // Admin user ID who moderated
+
+  // Ownership
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Soft delete
+  deletedAt         DateTime?
+
+  // Relations
+  comments          Comment[]
+  likes             PresetLike[]
+  analytics         PresetAnalytics[]
+
+  @@index([userId])
+  @@index([isPublic])
+  @@index([isFeatured])
+  @@index([tags])
+  @@index([createdAt])
+  @@index([moderationStatus])
+  @@index([deletedAt])
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ============================================================================
+// SOCIAL FEATURES
+// ============================================================================
+
+// Comments on Presets
+model Comment {
+  id            String    @id @default(cuid())
+  text          String    @db.Text
+
+  // Threaded replies (max 2 levels deep)
+  parentId      String?
+  parent        Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comment[] @relation("CommentReplies")
+
+  // Relations
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  presetId      String
+  preset        Preset    @relation(fields: [presetId], references: [id], onDelete: Cascade)
+
+  // Statistics
+  likeCount     Int       @default(0)
+
+  // Moderation
+  isFlagged     Boolean   @default(false)
+  flagReason    String?
+
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  editedAt      DateTime? // Track if comment was edited
+
+  // Soft delete
+  deletedAt     DateTime?
+
+  @@index([presetId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+// Preset Likes
+model PresetLike {
+  id            String    @id @default(cuid())
+
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  presetId      String
+  preset        Preset    @relation(fields: [presetId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime  @default(now())
+
+  @@unique([userId, presetId]) // Prevent duplicate likes
+  @@index([presetId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Follow System
+model Follow {
+  id            String    @id @default(cuid())
+
+  followerId    String
+  follower      User      @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+
+  followingId   String
+  following     User      @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime  @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+model Notification {
+  id            String    @id @default(cuid())
+  type          NotificationType
+  title         String
+  message       String    @db.Text
+
+  // Context (what triggered the notification)
+  presetId      String?   // If related to a preset
+  commentId     String?   // If related to a comment
+  fromUserId    String?   // User who triggered notification
+
+  isRead        Boolean   @default(false)
+
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  NEW_COMMENT
+  COMMENT_REPLY
+  PRESET_LIKED
+  NEW_FOLLOWER
+  ANALYSIS_COMPLETE
+  SYSTEM_ANNOUNCEMENT
+}
+
+// ============================================================================
+// ANALYTICS & TRACKING
+// ============================================================================
+
+// User Analytics (daily metrics per user)
+model UserAnalytics {
+  id            String    @id @default(cuid())
+
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date          DateTime  @db.Date
+
+  // Daily metrics
+  profileViews  Int       @default(0)
+  presetDownloads Int     @default(0)
+  presetsCreated Int      @default(0)
+  newFollowers  Int       @default(0)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+// Preset Analytics (daily metrics per preset)
+model PresetAnalytics {
+  id            String    @id @default(cuid())
+
+  presetId      String
+  preset        Preset    @relation(fields: [presetId], references: [id], onDelete: Cascade)
+
+  date          DateTime  @db.Date
+
+  // Daily metrics
+  views         Int       @default(0)
+  downloads     Int       @default(0)
+  likes         Int       @default(0)
+  audioPlays    Int       @default(0)
+
+  @@unique([presetId, date])
+  @@index([presetId])
+  @@index([date])
+}
+
+// ============================================================================
+// SUBSCRIPTIONS & BILLING
+// ============================================================================
+
+model SubscriptionHistory {
+  id            String    @id @default(cuid())
+  userId        String
+  tier          SubscriptionTier
+  status        SubscriptionStatus
+
+  // Stripe integration
+  stripeSubscriptionId String? @unique
+  stripePriceId        String?
+
+  // Billing dates
+  startDate     DateTime
+  endDate       DateTime?
+  cancelledAt   DateTime?
+
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([status])
+  @@index([stripeSubscriptionId])
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAUSED
+}

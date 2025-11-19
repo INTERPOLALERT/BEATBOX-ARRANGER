@@ -7,7 +7,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**.amazonaws.com', // S3
+        hostname: '**.amazonaws.com', // AWS S3
       },
       {
         protocol: 'https',
@@ -20,6 +20,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'avatars.githubusercontent.com', // GitHub OAuth
+      },
+      {
+        protocol: 'https',
+        hostname: 'platform-lookaside.fbsbx.com', // Facebook OAuth
       },
     ],
   },
@@ -49,6 +53,10 @@ const nextConfig = {
           {
             key: 'Permissions-Policy',
             value: 'microphone=(self), camera=()',
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains',
           },
         ],
       },
