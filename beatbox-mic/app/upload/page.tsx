@@ -14,6 +14,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { analyzeAudioBuffer } from '@/lib/audio/analysis';
+import PresetSaveModal from '@/components/presets/PresetSaveModal';
 
 export default function UploadPage() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function UploadPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState('');
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
   // File validation
   const validateFile = (file: File): string | null => {
@@ -133,8 +135,7 @@ export default function UploadPage() {
 
   // Save preset and continue
   const handleSavePreset = () => {
-    // TODO: Navigate to preset review page with analysis results
-    router.push('/presets/new?analysis=' + JSON.stringify(analysisResult));
+    setIsSaveModalOpen(true);
   };
 
   return (
@@ -340,6 +341,21 @@ export default function UploadPage() {
           </div>
         )}
       </div>
+
+      {/* Preset Save Modal */}
+      {analysisResult && file && (
+        <PresetSaveModal
+          isOpen={isSaveModalOpen}
+          onClose={() => setIsSaveModalOpen(false)}
+          audioData={{
+            audioFileUrl: URL.createObjectURL(file),
+            audioFileName: file.name,
+            audioDuration: analysisResult.metadata?.duration || 0,
+            sampleRate: analysisResult.metadata?.sampleRate || 44100,
+          }}
+          analysisData={analysisResult}
+        />
+      )}
     </div>
   );
 }

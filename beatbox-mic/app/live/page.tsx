@@ -22,6 +22,7 @@ import SpectrumAnalyzer from '@/components/audio/SpectrumAnalyzer';
 import LevelMeter from '@/components/audio/LevelMeter';
 import CompressorControls, { CompressorSettings } from '@/components/audio/CompressorControls';
 import ReverbControls, { ReverbSettings } from '@/components/audio/ReverbControls';
+import PresetSaveModal from '@/components/presets/PresetSaveModal';
 
 export default function LivePage() {
   const router = useRouter();
@@ -59,6 +60,9 @@ export default function LivePage() {
   // High-pass filter
   const [highPassEnabled, setHighPassEnabled] = useState(true);
   const [highPassFrequency, setHighPassFrequency] = useState(80);
+
+  // Preset save modal
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
   // Initialize audio processor
   const initializeProcessor = async () => {
@@ -359,7 +363,10 @@ export default function LivePage() {
                 Save your current settings as a preset to use later or share with others.
               </p>
               <div className="flex gap-4">
-                <button className="btn-success">
+                <button
+                  onClick={() => setIsSaveModalOpen(true)}
+                  className="btn-success"
+                >
                   💾 Save as Preset
                 </button>
                 <button className="btn-secondary">
@@ -370,6 +377,41 @@ export default function LivePage() {
           </div>
         )}
       </div>
+
+      {/* Preset Save Modal */}
+      {isInitialized && (
+        <PresetSaveModal
+          isOpen={isSaveModalOpen}
+          onClose={() => setIsSaveModalOpen(false)}
+          audioData={{
+            audioFileUrl: '', // TODO: Add recording functionality
+            audioFileName: 'live-recording.wav',
+            audioDuration: 0,
+            sampleRate: 44100,
+          }}
+          analysisData={{
+            eq: {
+              bands: eqFrequencies.map((freq, i) => ({
+                frequency: freq,
+                gain: eqGains[i],
+                q: 1.0,
+              })),
+            },
+            compressor: compressorSettings,
+            reverb: reverbSettings,
+            limiter: {
+              enabled: true,
+              threshold: -1,
+            },
+            filter: {
+              highPass: {
+                enabled: highPassEnabled,
+                frequency: highPassFrequency,
+              },
+            },
+          }}
+        />
+      )}
     </div>
   );
 }
