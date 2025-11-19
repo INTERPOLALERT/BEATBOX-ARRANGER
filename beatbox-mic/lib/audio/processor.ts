@@ -407,6 +407,109 @@ export class LiveAudioProcessor {
   }
 
   // ===========================================================================
+  // PUBLIC CONTROLS
+  // ===========================================================================
+
+  /**
+   * Gets the input analyser node for visualization
+   */
+  getInputAnalyser(): AnalyserNode | null {
+    return this.inputAnalyser;
+  }
+
+  /**
+   * Gets the output analyser node for visualization
+   */
+  getOutputAnalyser(): AnalyserNode | null {
+    return this.outputAnalyser;
+  }
+
+  /**
+   * Sets the gain for a specific EQ band
+   *
+   * @param index - EQ band index (0-9)
+   * @param gain - Gain in dB (-12 to +12)
+   */
+  setEQBand(index: number, gain: number): void {
+    if (!this.context || !this.eqBands[index]) return;
+
+    const currentTime = this.context.currentTime;
+    const rampTime = 0.05;
+
+    this.eqBands[index].gain.setTargetAtTime(gain, currentTime, rampTime);
+  }
+
+  /**
+   * Sets compressor parameters
+   */
+  setCompressor(
+    threshold: number,
+    ratio: number,
+    attack: number,
+    release: number,
+    knee: number
+  ): void {
+    if (!this.context || !this.compressor) return;
+
+    const currentTime = this.context.currentTime;
+    const rampTime = 0.05;
+
+    this.compressor.threshold.setTargetAtTime(threshold, currentTime, rampTime);
+    this.compressor.ratio.setTargetAtTime(ratio, currentTime, rampTime);
+    this.compressor.attack.setTargetAtTime(attack, currentTime, rampTime);
+    this.compressor.release.setTargetAtTime(release, currentTime, rampTime);
+    this.compressor.knee.setTargetAtTime(knee, currentTime, rampTime);
+  }
+
+  /**
+   * Sets reverb parameters
+   */
+  setReverb(
+    type: 'room' | 'hall' | 'plate' | 'spring',
+    wetDry: number,
+    decay: number,
+    roomSize: number
+  ): void {
+    if (!this.context || !this.reverbSend || !this.reverbReturn) return;
+
+    const currentTime = this.context.currentTime;
+    const rampTime = 0.1;
+
+    // Load impulse response
+    this.loadImpulseResponse(type);
+
+    // Set wet/dry mix
+    this.reverbSend.gain.setTargetAtTime(wetDry, currentTime, rampTime);
+    this.reverbReturn.gain.setTargetAtTime(1 - wetDry, currentTime, rampTime);
+  }
+
+  /**
+   * Sets high-pass filter parameters
+   */
+  setHighPassFilter(enabled: boolean, frequency: number): void {
+    if (!this.context || !this.highPassFilter) return;
+
+    const currentTime = this.context.currentTime;
+    const rampTime = 0.05;
+
+    if (enabled) {
+      this.highPassFilter.frequency.setTargetAtTime(frequency, currentTime, rampTime);
+      this.highPassFilter.Q.setTargetAtTime(0.7, currentTime, rampTime);
+    } else {
+      // Set to very low frequency to effectively bypass
+      this.highPassFilter.frequency.setTargetAtTime(20, currentTime, rampTime);
+      this.highPassFilter.Q.setTargetAtTime(0.1, currentTime, rampTime);
+    }
+  }
+
+  /**
+   * Bypasses all processing (sets output gain to 0)
+   */
+  bypass(): void {
+    this.pause();
+  }
+
+  // ===========================================================================
   // VISUALIZATION & MONITORING
   // ===========================================================================
 
